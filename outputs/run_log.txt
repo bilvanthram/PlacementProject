@@ -1,0 +1,204 @@
+======================================================================
+DATA UNDERSTANDING
+======================================================================
+Shape: (50000, 32)
+
+Columns and dtypes:
+StudentID               int64
+Gender                    str
+City                      str
+CollegeTier               str
+Stream                    str
+Specialisation            str
+Hostel                    str
+HistoryOfBacklogs         str
+SGPA_Sem1             float64
+SGPA_Sem2             float64
+SGPA_Sem3             float64
+SGPA_Sem4             float64
+SGPA_Sem5             float64
+SGPA_Sem6             float64
+SGPA_Sem7             float64
+SGPA_Sem8             float64
+CGPA                  float64
+AttendancePercent     float64
+Internships             int64
+Projects                int64
+Workshops             float64
+Certifications          int64
+Publications            int64
+AptitudeTestScore     float64
+SoftSkillsRating      float64
+CodingTestScore       float64
+MockInterviewScore    float64
+ExtraCurricular         int64
+CGPA_Tier                 str
+PlacementStatus         int64
+IsAnomaly               int64
+Salary Package        float64
+dtype: object
+
+Numerical columns (24): ['StudentID', 'SGPA_Sem1', 'SGPA_Sem2', 'SGPA_Sem3', 'SGPA_Sem4', 'SGPA_Sem5', 'SGPA_Sem6', 'SGPA_Sem7', 'SGPA_Sem8', 'CGPA', 'AttendancePercent', 'Internships', 'Projects', 'Workshops', 'Certifications', 'Publications', 'AptitudeTestScore', 'SoftSkillsRating', 'CodingTestScore', 'MockInterviewScore', 'ExtraCurricular', 'PlacementStatus', 'IsAnomaly', 'Salary Package']
+Categorical columns (8): ['Gender', 'City', 'CollegeTier', 'Stream', 'Specialisation', 'Hostel', 'HistoryOfBacklogs', 'CGPA_Tier']
+
+Target column: 'PlacementStatus'
+Target values: [0, 1]
+Target distribution:
+PlacementStatus
+1    65.712
+0    34.288
+Name: proportion, dtype: float64
+
+Missing values (columns with any):
+Workshops             4488
+AptitudeTestScore     4029
+SoftSkillsRating      3526
+CodingTestScore       2976
+MockInterviewScore    4957
+dtype: int64
+
+Duplicate rows: 0
+Duplicate StudentID values: 0
+
+Problem type: Supervised Learning -> Binary Classification.
+The target 'PlacementStatus' takes exactly two values (0 = not placed, 1 = placed), each row is an independently labeled student record with no time-ordering to forecast, and the goal is to predict a class label rather than a continuous quantity -> binary classification.
+No duplicate rows found.
+
+--- TARGET ANALYSIS ---
+Class counts:
+PlacementStatus
+0    17144
+1    32856
+Name: count, dtype: int64
+Class percentages:
+PlacementStatus
+0    34.288
+1    65.712
+Name: proportion, dtype: float64
+Class balance: 34.3% / 65.7% split -> moderately imbalanced, not severe enough to require resampling, but worth using stratified train/test splits (done below).
+
+--- BIVARIATE ANALYSIS (placement rate by group) ---
+
+Placement rate by CollegeTier:
+CollegeTier
+Tier1    0.908148
+Tier2    0.697662
+Tier3    0.301872
+Name: PlacementStatus, dtype: float64
+
+Placement rate by Internships:
+Internships
+2    0.977480
+3    0.888517
+1    0.680065
+0    0.201391
+Name: PlacementStatus, dtype: float64
+
+Placement rate by Projects:
+Projects
+4    0.999624
+3    0.956653
+5    0.796070
+2    0.742333
+1    0.323046
+0    0.023324
+Name: PlacementStatus, dtype: float64
+
+Placement rate by HistoryOfBacklogs:
+HistoryOfBacklogs
+No     0.736141
+Yes    0.302295
+Name: PlacementStatus, dtype: float64
+
+--- CORRELATION WITH TARGET (top drivers) ---
+SGPA_Sem8             0.707147
+SGPA_Sem7             0.701972
+SGPA_Sem6             0.695881
+SGPA_Sem5             0.690914
+SGPA_Sem4             0.683972
+SGPA_Sem3             0.677780
+SGPA_Sem2             0.672252
+MockInterviewScore    0.668000
+SGPA_Sem1             0.665039
+CGPA                  0.648926
+SoftSkillsRating      0.624788
+CodingTestScore       0.612832
+Certifications        0.601315
+Workshops             0.581535
+Projects              0.580122
+AptitudeTestScore     0.577749
+AttendancePercent     0.554024
+Internships           0.526197
+Publications          0.469351
+ExtraCurricular       0.239572
+Name: PlacementStatus, dtype: float64
+
+--- OUTLIER CHECK (IQR method) ---
+CodingTestScore       408
+Publications          259
+SGPA_Sem1               0
+SGPA_Sem2               0
+SGPA_Sem4               0
+SGPA_Sem3               0
+SGPA_Sem5               0
+SGPA_Sem6               0
+CGPA                    0
+AttendancePercent       0
+SGPA_Sem7               0
+SGPA_Sem8               0
+Projects                0
+Internships             0
+Certifications          0
+Workshops               0
+AptitudeTestScore       0
+SoftSkillsRating        0
+MockInterviewScore      0
+ExtraCurricular         0
+dtype: int64
+
+Decision: outlier counts are small relative to 50,000 rows and fall on variables with natural, bounded scales (test scores 0-100, CGPA 4-10, counts of internships/projects/etc.). These look like genuine high/low performers rather than data errors, so outliers are RETAINED (not capped or removed). StandardScaler + PCA are considered robust enough at this sample size; capping is reconsidered only if a later model at the classifier stage proves too sensitive to them.
+
+EDA conclusions:
+- Class balance: ~66% placed / ~34% not placed -> mild imbalance.
+- Strongest positive drivers of placement: MockInterviewScore, CGPA, SoftSkillsRating, CodingTestScore, Certifications, Workshops, Projects, AptitudeTestScore, AttendancePercent, Internships (all correlate 0.5-0.7 with the target).
+- CollegeTier shows a very strong placement gradient: ~91% (Tier1) vs ~70% (Tier2) vs ~30% (Tier3).
+- HistoryOfBacklogs strongly reduces placement odds (~74% vs ~30%).
+- Missing values are concentrated in 5 test/activity score columns and appear to be missing at random with respect to the target.
+- IsAnomaly flags a small subset (3.5%) of rows with internally inconsistent CGPA/SGPA values; treated as a data-quality signal, not a feature.
+- Salary Package is populated only for placed students and is therefore excluded entirely as an input feature (target leakage).
+
+======================================================================
+FINAL FEATURE LIST BEFORE ENCODING/PCA
+======================================================================
+Numeric (24): ['SGPA_Sem1', 'SGPA_Sem2', 'SGPA_Sem3', 'SGPA_Sem4', 'SGPA_Sem5', 'SGPA_Sem6', 'SGPA_Sem7', 'SGPA_Sem8', 'CGPA', 'AttendancePercent', 'Internships', 'Projects', 'Workshops', 'Certifications', 'Publications', 'AptitudeTestScore', 'SoftSkillsRating', 'CodingTestScore', 'MockInterviewScore', 'ExtraCurricular', 'SGPA_Trend', 'Practical_Experience_Score', 'Has_Internship', 'Avg_Test_Score']
+Ordinal (2): ['CollegeTier', 'CGPA_Tier']
+Nominal (6): ['Gender', 'City', 'Stream', 'Specialisation', 'Hostel', 'HistoryOfBacklogs']
+Total raw input columns before encoding: 32
+Excluded columns: ['StudentID', 'Salary Package', 'IsAnomaly'] (see clean_data docstring for rationale)
+
+Train shape: (40000, 32), Test shape: (10000, 32)
+
+Before PCA shape (train): (40000, 52)
+Before PCA shape (test):  (10000, 52)
+Components needed for 90% variance: 18
+Components needed for 95% variance: 25
+Components needed for 99% variance: 36
+
+Selected n_components = 25 (retains 95.42% variance, the 95% threshold), balancing dimensionality reduction against information loss for a dataset with 52 encoded input features.
+
+After PCA shape (train): (40000, 25)
+After PCA shape (test):  (10000, 25)
+
+======================================================================
+FINAL REPORT
+======================================================================
+Original feature count (raw input columns): 32
+Encoded feature count (after one-hot/ordinal/scaling): 52
+Selected PCA components: 25
+Variance retained: 95.42%
+Before PCA shape: train=(40000, 52), test=(10000, 52)
+After PCA shape:  train=(40000, 25), test=(10000, 25)
+
+PCA output saved to: /home/claude/PlacementProject/src/../outputs/train_pca.csv, /home/claude/PlacementProject/src/../outputs/test_pca.csv
+Fitted pipeline saved to: /home/claude/PlacementProject/src/../artifacts/preprocessing_pca_pipeline.joblib
+EDA/PCA figures saved to: /home/claude/PlacementProject/src/../outputs/figures
